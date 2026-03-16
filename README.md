@@ -1,168 +1,194 @@
-# Serenity BDD — Restful-API.dev Test Suite
+# SerenityBDD REST API Test Automation Framework
 
-End-to-end API test automation framework targeting **[restful-api.dev](https://restful-api.dev)**,
-built with SerenityBDD + Cucumber (BDD), RestAssured, Spring Boot, and JUnit 4.
+## Project Overview
 
----
+A BDD test automation framework for CRUD operations against a REST API that mirrors [restful-api.dev](https://restful-api.dev/). The project includes both a **standalone Spring Boot API** (in-memory) and a **SerenityBDD/Cucumber test suite** that validates all endpoints. The same test suite runs against **local** and **dev** environments via Spring profiles.
 
 ## Tech Stack
 
-| Technology          | Version  | Role                                   |
-|---------------------|----------|----------------------------------------|
-| Java                | 17       | Language                               |
-| SerenityBDD         | 4.1.20   | Test orchestration & HTML reporting    |
-| Cucumber 7 (Gherkin)| 7.15.0   | BDD scenario definitions               |
-| REST-Assured        | 5.3.2    | HTTP client                            |
-| JUnit 4             | 4.13.2   | Test runner (CucumberWithSerenity)     |
-| Spring Boot         | 3.2.1    | Dependency injection & configuration   |
-| Lombok              | managed  | Boilerplate elimination                |
-| AssertJ             | managed  | Fluent assertions                      |
-| Maven               | 3.8+     | Build & dependency management          |
-
----
-
-## Project Structure
-
-```
-serenity-restful-api/
-├── pom.xml
-├── .gitignore
-│
-├── src/main/java/com/restfulapi/
-│   ├── RestfulApiApplication.java          # Spring Boot entry point
-│   ├── config/
-│   │   └── ApiConfig.java                  # @ConfigurationProperties (baseUrl, timeouts, logging)
-│   ├── constants/
-│   │   └── Endpoints.java                  # API path constants
-│   ├── helper/
-│   │   └── ApiHelper.java                  # The ONLY class that calls RestAssured / SerenityRest
-│   └── model/
-│       ├── ApiObject.java                  # Response model (id, name, data, createdAt, updatedAt)
-│       └── CreateObjectRequest.java        # Request payload (name, data)
-│
-├── src/main/resources/
-│   └── application.properties             # Base API config
-│
-├── src/test/java/com/restfulapi/
-│   ├── config/
-│   │   └── CucumberSpringConfiguration.java  # @CucumberContextConfiguration + @SpringBootTest
-│   ├── context/
-│   │   └── ScenarioContext.java              # Per-scenario state (cucumber-glue scope)
-│   ├── runner/
-│   │   └── CucumberTestRunner.java           # @RunWith(CucumberWithSerenity.class)
-│   └── stepdefs/
-│       └── ObjectStepDefinitions.java        # All Given/When/Then implementations
-│
-└── src/test/resources/
-    ├── features/
-    │   └── objects.feature                # All 26 Gherkin scenarios
-    ├── application.properties             # Test config overrides
-    ├── serenity.conf                      # Serenity report configuration
-    └── logback-test.xml                   # Test logging configuration
-```
-
----
+| Layer            | Technology                    | Version  |
+|------------------|-------------------------------|----------|
+| Language         | Java                          | 17       |
+| Build            | Maven                         | 3.x      |
+| Framework        | Spring Boot                   | 3.2.1    |
+| BDD              | Cucumber 7                    | 7.22.2   |
+| Test Orchestration | SerenityBDD                 | 4.2.34   |
+| HTTP Client      | REST-Assured (via SerenityRest) | 5.3.2  |
+| Assertions       | AssertJ + REST-Assured JsonPath |        |
+| Boilerplate      | Lombok                        | 1.18.38  |
+| Test Runner      | JUnit 5 Platform Suite (`@Suite` + `cucumber-junit-platform-engine`) |  |
 
 ## Architecture
 
 ```
-CucumberTestRunner
-       │  @RunWith(CucumberWithSerenity)
-       ▼
-ObjectStepDefinitions          ← @Autowired beans
-       │
-       ├──▶ ApiHelper          ← @Step-annotated, calls SerenityRest
-       │         │
-       │         └──▶ restful-api.dev  (HTTPS)
-       │
-       └──▶ ScenarioContext    ← @Scope("cucumber-glue"), fresh per scenario
-                 │
-                 └── lastResponse, createdObjectId, lastCreatedObject
+src/main/java/com/restfulapi/
+├── RestfulApiApplication.java          # Spring Boot entry point
+├── config/ApiConfig.java               # Externalized API configuration
+├── constants/Endpoints.java            # URI path constants
+├── controller/ObjectController.java    # REST controller (GET/POST/PUT/PATCH/DELETE)
+├── helper/ApiHelper.java               # Single HTTP client (SerenityRest)
+├── model/
+│   ├── ApiObject.java                  # Response model
+│   └── CreateObjectRequest.java        # Request payload model
+└── service/ObjectService.java          # In-memory CRUD service with seed data
+
+src/test/java/com/restfulapi/
+├── config/CucumberSpringConfiguration.java  # Spring Boot test context bridge
+├── context/ScenarioContext.java             # Per-scenario state (cucumber-glue scope)
+├── hooks/ScenarioHooks.java                 # @Before/@After lifecycle hooks
+├── runner/CucumberTestRunner.java           # JUnit 5 Platform Suite entry point
+└── stepdefs/ObjectStepDefinitions.java      # All step implementations
+
+src/test/resources/
+├── features/
+│   ├── create_object.feature           # 2 scenarios (@create)
+│   ├── get_object.feature              # 2 scenarios (@get)
+│   ├── list_objects.feature            # 2 scenarios (@list)
+│   ├── delete_object.feature           # 2 scenarios (@delete)
+│   ├── edge_cases.feature             # 5 scenarios (@edge)
+│   └── smoke_test.feature             # 4 scenarios (@smoke)
+├── application.properties              # Base test config (shared settings)
+├── application-local.properties        # Local profile (localhost:8089)
+├── application-dev.properties          # Dev profile (api.restful-api.dev)
+├── junit-platform.properties           # Cucumber JUnit Platform Engine config
+├── cucumber.properties                 # Cucumber publish settings
+└── logback-test.xml                    # Logging config
 ```
 
-**Key design decisions:**
-- `ApiHelper` is the **only** class that calls RestAssured/SerenityRest — all HTTP traffic flows through it.
-- Every `ApiHelper` method has `@Step` for full Serenity report visibility.
-- `ScenarioContext` uses Spring's `"cucumber-glue"` scope — no manual `@Before`/`@After` cleanup needed.
-- `Given` steps assert pre-conditions; `When` steps only invoke the API; `Then` steps only assert.
+## Design Principles
 
----
+1. **Single Responsibility** — `ApiHelper` is the only class that calls SerenityRest/REST-Assured
+2. **Dependency Injection** — All beans wired via Spring `@Autowired`, no manual instantiation
+3. **Given/When/Then Separation** — Given steps build requests, When steps invoke APIs, Then steps assert responses
+4. **Scenario Isolation** — `ScenarioContext` uses `cucumber-glue` scope (fresh per scenario) + `@After` hook cleans up created objects
+5. **Builder Pattern Steps** — Incremental request construction across Given steps (name, CPU model, price)
+6. **Configuration-Driven** — All connection properties externalized via Spring profiles + `application-{profile}.properties`
+7. **Serenity Reporting** — Every `ApiHelper` method annotated with `@Step` for rich HTML reports
+8. **Environment Portability** — Same test suite runs against local and dev via `-Dspring.profiles.active`
 
-## Run Commands
+## Multi-Environment Support
+
+The framework uses **Spring profiles** to switch between environments. Each profile has its own `application-{profile}.properties` that overrides `api.base-url` and `server.port`.
+
+| Profile  | Base URL                          | Server Port | Description                        |
+|----------|-----------------------------------|-------------|------------------------------------|
+| `local`  | `http://localhost:8089`           | 8089        | Embedded Spring Boot API (default) |
+| `dev`    | `https://api.restful-api.dev`     | 0 (random)  | Public restful-api.dev service     |
+
+### How it works
+
+- **Local** (default): The embedded Spring Boot API starts on port 8089 with 13 seeded objects. Tests run fully self-contained — no external dependencies.
+- **Dev**: Tests point to the remote API. The embedded server still starts (on a random port) but is unused. Only `api.base-url` changes.
+
+> **Rate limit note:** The public restful-api.dev API has a daily request limit of 50 requests on the free tier. If you hit a 405 response with a rate limit error, either wait for the daily reset, sign up at https://restful-api.dev/sign-in for higher limits, or run tests against the local environment instead.
+
+### Running against each environment
 
 ```bash
-# All tests + Serenity HTML report
+# Local (default) — all 17 scenarios
 mvn clean verify
 
-# Smoke tests (critical path)
-mvn clean verify -Dcucumber.filter.tags="@smoke"
-
-# Full lifecycle end-to-end test
-mvn clean verify -Dcucumber.filter.tags="@e2e"
-
-# Negative / error-path tests
-mvn clean verify -Dcucumber.filter.tags="@negative"
-
-# All GET and POST scenarios
-mvn clean verify -Dcucumber.filter.tags="@get or @post"
-
-# All PUT + PATCH (update) scenarios
-mvn clean verify -Dcucumber.filter.tags="@put or @patch"
-
-# Persistence checks (POST then GET)
-mvn clean verify -Dcucumber.filter.tags="@persistence"
+# Dev — exclude edge cases that depend on local seed data
+mvn clean verify -Dspring.profiles.active=dev \
+  -Dcucumber.filter.tags="not @wip and not @edge"
 ```
 
-**Report location:** `target/site/serenity/index.html`
+### Adding a new environment
 
----
+1. Create `src/test/resources/application-{name}.properties`:
+   ```properties
+   server.port=0
+   api.base-url=https://your-api-host.com
+   ```
+2. Run with `-Dspring.profiles.active={name}`
 
-## Tag Reference
+## API Endpoints (Standalone Server)
 
-| Tag              | Meaning                                     |
-|------------------|---------------------------------------------|
-| `@api @objects`  | Feature-level — all scenarios               |
-| `@smoke`         | Critical-path scenarios                     |
-| `@get`           | GET /objects scenarios                      |
-| `@post`          | POST /objects scenarios                     |
-| `@put`           | PUT /objects/{id} scenarios                 |
-| `@patch`         | PATCH /objects/{id} scenarios               |
-| `@delete`        | DELETE /objects/{id} scenarios              |
-| `@list`          | Collection GET operations                   |
-| `@single`        | Single-resource GET operations              |
-| `@create`        | Object creation scenarios                   |
-| `@update`        | Full-update scenarios                       |
-| `@partial-update`| Partial-update scenarios                    |
-| `@persistence`   | POST-then-GET data persistence checks       |
-| `@negative`      | Error / sad-path scenarios (4xx responses)  |
-| `@e2e @lifecycle`| Full Create→Read→PUT→PATCH→Delete flow     |
-| `@wip`           | Excluded from default run (`not @wip`)      |
+| Method | Endpoint               | Description                          |
+|--------|------------------------|--------------------------------------|
+| GET    | `/objects`             | List all objects (supports `?id=` filtering) |
+| GET    | `/objects/{id}`        | Retrieve single object               |
+| POST   | `/objects`             | Create object (returns `createdAt`)  |
+| PUT    | `/objects/{id}`        | Full replacement update (`updatedAt`) |
+| PATCH  | `/objects/{id}`        | Partial merge update (`updatedAt`)   |
+| DELETE | `/objects/{id}`        | Delete object (confirmation message) |
 
----
+The API is seeded with 13 objects (IDs 1-13) matching restful-api.dev data on startup.
 
-## Scenario Coverage
+## Test Scenarios (17 total across 6 feature files)
 
-| Area               | Scenarios |
-|--------------------|-----------|
-| GET /objects (list)| 3         |
-| GET /objects/{id}  | 5         |
-| POST /objects      | 3         |
-| Persistence checks | 2         |
-| PUT /objects/{id}  | 2         |
-| PATCH /objects/{id}| 3         |
-| DELETE /objects/{id}| 4        |
-| End-to-End         | 1         |
-| **Total**          | **23**    |
+| Feature File            | Scenarios | Tag       | Coverage                                    |
+|-------------------------|-----------|-----------|---------------------------------------------|
+| `create_object.feature` | 2         | `@create` | Full details + minimal (name only)          |
+| `get_object.feature`    | 2         | `@get`    | Retrieve created item + non-existent (404)  |
+| `list_objects.feature`  | 2         | `@list`   | List all + verify created item in list      |
+| `delete_object.feature` | 2         | `@delete` | Delete created item + non-existent (404)    |
+| `edge_cases.feature`    | 5         | `@edge`   | Empty name, special chars, consistency, update persistence, delete confirmation |
+| `smoke_test.feature`    | 4         | `@smoke`  | Health check, seeded object retrieval (x2), non-existent 404 |
 
----
+### Tag Strategy
 
-## Prerequisites
+| Tag        | Purpose                                               |
+|------------|-------------------------------------------------------|
+| `@create`  | Object creation scenarios                             |
+| `@get`     | Single object retrieval scenarios                     |
+| `@list`    | List/browse scenarios                                 |
+| `@delete`  | Object deletion scenarios                             |
+| `@edge`    | Error handling and edge case scenarios                |
+| `@smoke`   | Smoke tests for verifying basic API availability      |
+| `@wip`     | Work in progress — excluded from all runs by default  |
 
-- Java 17+
-- Maven 3.8+
-- Internet access to `api.restful-api.dev`
+## Running Tests
 
 ```bash
-mvn --version   # verify Maven
-java -version   # verify Java 17+
+# All tests (local, default)
+mvn clean verify
+
+# By tag
+mvn clean verify -Dcucumber.filter.tags="@create"
+mvn clean verify -Dcucumber.filter.tags="@edge"
+mvn clean verify -Dcucumber.filter.tags="@get or @delete"
+
+# Dev environment
+mvn clean verify -Dspring.profiles.active=dev
+
+# Smoke tests on dev
+mvn clean verify -Dspring.profiles.active=dev \
+  -Dcucumber.filter.tags="@smoke"
+
+# Environment + tag combination
+mvn clean verify -Dspring.profiles.active=dev \
+  -Dcucumber.filter.tags="@create and not @wip"
+
+# Run standalone API (port 8080)
+mvn spring-boot:run
 ```
+
+## Reports
+
+After `mvn clean verify`, open:
+```
+target/site/serenity/index.html
+```
+
+## Configuration
+
+| File                                         | Purpose                        |
+|----------------------------------------------|--------------------------------|
+| `src/main/resources/application.properties`  | Standalone server (port 8080)  |
+| `src/test/resources/application.properties`  | Base test config (shared)      |
+| `src/test/resources/application-local.properties`  | Local embedded server    |
+| `src/test/resources/application-dev.properties`    | Dev (restful-api.dev)    |
+| `src/test/resources/junit-platform.properties`     | Cucumber ObjectFactory (SpringFactory) |
+
+Default profile is `local` (set in `pom.xml`). Override with `-Dspring.profiles.active=<profile>`.
+
+## Conventions
+
+- Feature files live in `src/test/resources/features/` (one per API capability)
+- Step definitions live in `com.restfulapi.stepdefs`
+- `@wip` tag excludes scenarios from default runs
+- Cleanup hooks auto-delete objects created during scenarios
+- Numeric string values are auto-coerced to Long/Double via `coerce()` helper
+- Profile-specific properties only override `api.base-url` and `server.port`
+- `junit-platform.properties` resolves ObjectFactory SPI conflict between `serenity-cucumber` and `cucumber-spring`
