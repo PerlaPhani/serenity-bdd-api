@@ -10,8 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 /**
  * Cucumber lifecycle hooks for setup and cleanup.
- *
- * <p>{@code @Before} runs before each scenario to reset state.
+ * {@code @Before} runs before each scenario to reset state.
  * {@code @After} runs after each scenario to clean up any objects
  * created during the test, ensuring test isolation.
  */

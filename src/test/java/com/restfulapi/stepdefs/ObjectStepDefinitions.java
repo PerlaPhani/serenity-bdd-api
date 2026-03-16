@@ -2,8 +2,8 @@ package com.restfulapi.stepdefs;
 
 import com.restfulapi.context.ScenarioContext;
 import com.restfulapi.helper.ApiHelper;
-import com.restfulapi.model.ApiObject;
-import com.restfulapi.model.CreateObjectRequest;
+import com.restfulapi.dto.CreateObjectRequest;
+import com.restfulapi.dto.ObjectResponse;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
@@ -23,7 +23,6 @@ public class ObjectStepDefinitions {
     @Autowired
     private ScenarioContext context;
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
 
     private Response response() {
         assertThat(context.getLastResponse())
@@ -115,8 +114,6 @@ public class ObjectStepDefinitions {
         context.setLastResponse(apiHelper.updateObject(requireCreatedObjectId(), request));
     }
 
-    // ── Then — assertions ────────────────────────────────────────────────────
-
     @Then("a {int} response code is returned")
     public void aResponseCodeIsReturned(int expectedStatus) {
         assertThat(response().getStatusCode())
@@ -179,13 +176,13 @@ public class ObjectStepDefinitions {
 
     @Then("the response contains a list of objects")
     public void theResponseContainsAListOfObjects() {
-        List<ApiObject> objects = Arrays.asList(response().as(ApiObject[].class));
+        List<ObjectResponse> objects = Arrays.asList(response().as(ObjectResponse[].class));
         assertThat(objects).as("Object list should not be empty").isNotEmpty();
     }
 
     @Then("the list contains an item with name {string}")
     public void theListContainsAnItemWithName(String expectedName) {
-        List<ApiObject> objects = Arrays.asList(response().as(ApiObject[].class));
+        List<ObjectResponse> objects = Arrays.asList(response().as(ObjectResponse[].class));
         assertThat(objects)
                 .as("List should contain an item named '%s'", expectedName)
                 .anyMatch(obj -> expectedName.equals(obj.getName()));

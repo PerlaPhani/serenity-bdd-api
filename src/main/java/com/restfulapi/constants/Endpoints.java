@@ -1,5 +1,9 @@
 package com.restfulapi.constants;
 
+/**
+ * URI path constants for the /objects API.
+ * - Used by ApiHelper to build request URLs consistently
+ */
 public final class Endpoints {
 
     private Endpoints() {

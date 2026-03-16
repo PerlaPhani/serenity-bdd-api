@@ -1,15 +1,13 @@
 package com.restfulapi.helper;
-
 import com.restfulapi.config.ApiConfig;
 import com.restfulapi.constants.Endpoints;
-import com.restfulapi.model.CreateObjectRequest;
+import com.restfulapi.dto.CreateObjectRequest;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
 import net.serenitybdd.annotations.Step;
 import net.serenitybdd.rest.SerenityRest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
 import java.util.List;
 
 /**
@@ -31,8 +29,6 @@ public class ApiHelper {
     @Autowired
     private ApiConfig apiConfig;
 
-    // ── private builder ──────────────────────────────────────────────────────
-
     private RequestSpecification buildRequestSpec() {
         RequestSpecification spec = SerenityRest.given()
                 .baseUri(apiConfig.getBaseUrl())
@@ -48,8 +44,6 @@ public class ApiHelper {
         }
         return spec;
     }
-
-    // ── GET ──────────────────────────────────────────────────────────────────
 
     @Step("GET /objects — retrieve all objects")
     public Response getAllObjects() {
@@ -73,16 +67,12 @@ public class ApiHelper {
                 .get(Endpoints.OBJECT_BY_ID);
     }
 
-    // ── POST ─────────────────────────────────────────────────────────────────
-
     @Step("POST /objects — create object: {0}")
     public Response createObject(CreateObjectRequest request) {
         return buildRequestSpec()
                 .body(request)
                 .post(Endpoints.OBJECTS);
     }
-
-    // ── PUT ──────────────────────────────────────────────────────────────────
 
     @Step("PUT /objects/{0} — full update")
     public Response updateObject(String id, CreateObjectRequest request) {
@@ -92,8 +82,6 @@ public class ApiHelper {
                 .put(Endpoints.OBJECT_BY_ID);
     }
 
-    // ── PATCH ────────────────────────────────────────────────────────────────
-
     @Step("PATCH /objects/{0} — partial update")
     public Response partiallyUpdateObject(String id, CreateObjectRequest request) {
         return buildRequestSpec()
@@ -101,8 +89,6 @@ public class ApiHelper {
                 .body(request)
                 .patch(Endpoints.OBJECT_BY_ID);
     }
-
-    // ── DELETE ───────────────────────────────────────────────────────────────
 
     @Step("DELETE /objects/{0}")
     public Response deleteObject(String id) {

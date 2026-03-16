@@ -1,3 +1,4 @@
+@smoke
 Feature: Smoke tests for dev environment
 
   Scenario: API health check - list all objects
@@ -5,7 +6,6 @@ Feature: Smoke tests for dev environment
     Then a 200 response code is returned
     And the response contains a list of objects
 
-  @smoke
   Scenario: Retrieve a known seeded object by ID
     When the item is retrieved by ID "7"
     Then a 200 response code is returned

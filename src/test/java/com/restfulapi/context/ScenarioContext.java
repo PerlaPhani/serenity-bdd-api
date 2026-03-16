@@ -1,6 +1,6 @@
 package com.restfulapi.context;
 
-import com.restfulapi.model.ApiObject;
+import com.restfulapi.dto.ObjectResponse;
 import io.restassured.response.Response;
 import lombok.Data;
 import org.springframework.context.annotation.Scope;
@@ -31,6 +31,6 @@ public class ScenarioContext {
         if (lastResponse == null) {
             return;
         }
-        this.createdObjectId = lastResponse.as(ApiObject.class).getId();
+        this.createdObjectId = lastResponse.as(ObjectResponse.class).getId();
     }
 }

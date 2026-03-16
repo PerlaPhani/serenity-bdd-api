@@ -12,8 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Demonstrates RestAssuredHelper usage against the default public API.
- *
- * <p>Run with: {@code mvn test -DskipUnitTests=false -Dtest=RestAssuredHelperTest}
+ * Run with: { mvn test -DskipUnitTests=false -Dtest=RestAssuredHelperTest}
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class RestAssuredHelperTest {
