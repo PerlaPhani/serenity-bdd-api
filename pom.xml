@@ -39,6 +39,9 @@
 
         <!-- Default environment profile — override with -Dspring.profiles.active=dev -->
         <spring.profiles.active>local</spring.profiles.active>
+
+        <!-- Default tag filter — override with -Dcucumber.filter.tags="@smoke" -->
+        <cucumber.filter.tags>not @wip</cucumber.filter.tags>
     </properties>
 
     <dependencies>
@@ -170,9 +173,13 @@
                         <include>**/runner/*Runner.java</include>
                     </includes>
                     <systemPropertyVariables>
-                        <cucumber.filter.tags>${cucumber.filter.tags}</cucumber.filter.tags>
                         <spring.profiles.active>${spring.profiles.active}</spring.profiles.active>
                     </systemPropertyVariables>
+                    <properties>
+                        <configurationParameters>
+                            cucumber.filter.tags=${cucumber.filter.tags}
+                        </configurationParameters>
+                    </properties>
                     <!-- Required on Java 17+ / 25 for SerenityRest byte-buddy proxying -->
                     <argLine>
                         --add-opens java.base/java.lang=ALL-UNNAMED

@@ -11,4 +11,5 @@ public class ApiConfig {
     private int connectionTimeout;
     private int readTimeout;
     private boolean loggingEnabled;
+    private String apiKey;
 }

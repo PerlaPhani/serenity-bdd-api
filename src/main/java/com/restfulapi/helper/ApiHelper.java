@@ -40,6 +40,10 @@ public class ApiHelper {
                 .contentType(ContentType.JSON)
                 .accept(ContentType.JSON);
 
+        if (apiConfig.getApiKey() != null && !apiConfig.getApiKey().isBlank()) {
+            spec = spec.header("x-api-key", apiConfig.getApiKey());
+        }
+
         if (apiConfig.isLoggingEnabled()) {
             spec = spec.log().all();
         }
