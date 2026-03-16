@@ -1,8 +1,5 @@
 @list
 Feature: Ability to list multiple items
-  As an API consumer
-  I want to list all objects in the system
-  So that I can browse the available items
 
   Scenario: List all available objects
     When a request to list all objects is made

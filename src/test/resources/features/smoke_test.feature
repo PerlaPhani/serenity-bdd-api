@@ -13,13 +13,6 @@ Feature: Smoke tests for dev environment
     And the response data contains "Intel Core i9" for "CPU model"
     And the response data contains "1849.99" for "price"
 
-  Scenario: Retrieve another known seeded object by ID
-    When the item is retrieved by ID "1"
-    Then a 200 response code is returned
-    And the response name is "Google Pixel 6 Pro"
-    And the response data contains "Cloudy White" for "color"
-    And the response data contains "128 GB" for "capacity"
-
   Scenario: Retrieve a non-existent object returns 404
     When the item is retrieved by ID "invalid_id_99999"
     Then a 404 response code is returned

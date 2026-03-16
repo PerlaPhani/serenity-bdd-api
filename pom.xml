@@ -17,7 +17,7 @@
     <version>1.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>Serenity BDD - Microservices </name>
+    <name>Serenity BDD - Microservices</name>
     <description>SerenityBDD API test automation framework targeting restful-api.dev</description>
 
     <properties>
@@ -25,7 +25,6 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-
         <serenity.version>4.2.34</serenity.version>
         <restassured.version>5.3.2</restassured.version>
         <cucumber.version>7.22.2</cucumber.version>
@@ -37,7 +36,6 @@
     </properties>
     <dependencies>
 
-        <!-- ── Spring Boot ─────────────────────────────────────────── -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
@@ -57,14 +55,12 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- ── JUnit 5 Platform Suite (drives Cucumber via JUnit Platform) -->
         <dependency>
             <groupId>org.junit.platform</groupId>
             <artifactId>junit-platform-suite</artifactId>
             <scope>test</scope>
         </dependency>
 
-        <!-- ── Cucumber JUnit Platform Engine ──────────────────────── -->
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-junit-platform-engine</artifactId>
@@ -72,7 +68,6 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- ── Serenity BDD ─────────────────────────────────────────── -->
         <dependency>
             <groupId>net.serenity-bdd</groupId>
             <artifactId>serenity-core</artifactId>
@@ -94,7 +89,6 @@
             <version>${serenity.version}</version>
         </dependency>
 
-        <!-- ── Cucumber Spring (enables @CucumberContextConfiguration) -->
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-spring</artifactId>
@@ -102,27 +96,23 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- ── REST-Assured 5.x ─────────────────────────────────────── -->
         <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>rest-assured</artifactId>
             <version>${restassured.version}</version>
         </dependency>
 
-        <!-- ── Lombok ───────────────────────────────────────────────── -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
 
-        <!-- ── AssertJ (version managed by spring-boot-starter-parent) -->
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
         </dependency>
 
-        <!-- ── Jackson (version managed by spring-boot-starter-parent) -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
@@ -133,7 +123,6 @@
     <build>
         <plugins>
 
-            <!-- ── Compiler: upgraded for Java 25 + Lombok ──────────── -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -150,7 +139,6 @@
                 </configuration>
             </plugin>
 
-            <!-- ── Surefire: unit tests (skipped by default, run with -DskipUnitTests=false) -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
@@ -159,7 +147,6 @@
                 </configuration>
             </plugin>
 
-            <!-- ── Failsafe: runs Cucumber integration tests ─────────── -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
@@ -175,7 +162,6 @@
                             cucumber.filter.tags=${cucumber.filter.tags}
                         </configurationParameters>
                     </properties>
-                    <!-- Required on Java 17+ / 25 for SerenityRest byte-buddy proxying -->
                     <argLine>
                         --add-opens java.base/java.lang=ALL-UNNAMED
                         --add-opens java.base/java.lang.reflect=ALL-UNNAMED
@@ -192,7 +178,6 @@
                 </executions>
             </plugin>
 
-            <!-- ── Serenity: aggregate HTML report ───────────────────── -->
             <plugin>
                 <groupId>net.serenity-bdd.maven.plugins</groupId>
                 <artifactId>serenity-maven-plugin</artifactId>
