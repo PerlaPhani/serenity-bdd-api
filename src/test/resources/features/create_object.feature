@@ -1,8 +1,5 @@
 @create
 Feature: Ability to create an item
-  As an API consumer
-  I want to create objects via the POST endpoint
-  So that I can store product information in the system
 
   Scenario: Successfully create an item with full details
     Given a "Apple MacBook Pro 16" item is created

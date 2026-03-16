@@ -1,9 +1,6 @@
 @delete
 Feature: Ability to delete an item
-  As an API consumer
-  I want to delete objects by their ID
-  So that I can remove items that are no longer needed
-
+ 
   Scenario: Delete a previously created item
     Given a "Item To Delete" item is created
     And the request to add the item is made
