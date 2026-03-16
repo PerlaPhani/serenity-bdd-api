@@ -6,6 +6,8 @@ import lombok.Data;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
+
 /**
  * Per-scenario state store.
  *
@@ -20,6 +22,12 @@ public class ScenarioContext {
     private Response lastResponse;
     private String createdObjectId;
     private ApiObject lastCreatedObject;
+
+    /** Holds the item name while building a request via Given steps. */
+    private String pendingRequestName;
+
+    /** Holds data fields accumulated across multiple Given steps before the When step fires. */
+    private Map<String, Object> pendingRequestData;
 
     /**
      * Extracts the {@code id} from {@link #lastResponse} and caches it as

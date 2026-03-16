@@ -36,6 +36,9 @@
 
         <!-- serenity-core 4.2.34 requires HasDownloads (added in Selenium 4.17+) -->
         <selenium.version>4.20.0</selenium.version>
+
+        <!-- Default environment profile — override with -Dspring.profiles.active=dev -->
+        <spring.profiles.active>local</spring.profiles.active>
     </properties>
 
     <dependencies>
@@ -43,7 +46,7 @@
         <!-- ── Spring Boot ─────────────────────────────────────────── -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter</artifactId>
+            <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -180,6 +183,7 @@
                     </includes>
                     <systemPropertyVariables>
                         <cucumber.filter.tags>${cucumber.filter.tags}</cucumber.filter.tags>
+                        <spring.profiles.active>${spring.profiles.active}</spring.profiles.active>
                     </systemPropertyVariables>
                     <!-- Required on Java 17+ / 25 for SerenityRest byte-buddy proxying -->
                     <argLine>

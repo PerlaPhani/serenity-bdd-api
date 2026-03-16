@@ -8,6 +8,7 @@ import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
+import io.restassured.path.json.JsonPath;
 import io.restassured.response.Response;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -104,6 +105,47 @@ public class ObjectStepDefinitions {
         try { return Long.parseLong(value); }   catch (NumberFormatException ignored) { /* not an integer */ }
         try { return Double.parseDouble(value); } catch (NumberFormatException ignored) { /* not a decimal */ }
         return value;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Builder-pattern steps (PDF example style)
+    //   Given a "<name>" item is created
+    //   And the CPU model is "<cpu>"
+    //   And has a price of "<price>"
+    //   When the request to add the item is made
+    // ═══════════════════════════════════════════════════════════════════════
+
+    @Given("a {string} item is created")
+    public void anItemIsCreated(String name) {
+        context.setPendingRequestData(new HashMap<>());
+        context.setPendingRequestName(name);
+    }
+
+    @Given("the CPU model is {string}")
+    public void theCpuModelIs(String cpuModel) {
+        context.getPendingRequestData().put("CPU model", cpuModel);
+    }
+
+    @Given("has a price of {string}")
+    public void hasAPriceOf(String price) {
+        context.getPendingRequestData().put("price", coerce(price));
+    }
+
+    @Given("the color is {string}")
+    public void theColorIs(String color) {
+        context.getPendingRequestData().put("color", color);
+    }
+
+    @When("the request to add the item is made")
+    public void theRequestToAddTheItemIsMade() {
+        CreateObjectRequest request = CreateObjectRequest.builder()
+                .name(context.getPendingRequestName())
+                .data(context.getPendingRequestData().isEmpty() ? null : context.getPendingRequestData())
+                .build();
+        context.setLastResponse(apiHelper.createObject(request));
+        if (context.getLastResponse().getStatusCode() == 200) {
+            context.captureCreatedObjectId();
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -281,6 +323,47 @@ public class ObjectStepDefinitions {
                 .as("Response should contain exactly the requested IDs %s but got %s",
                         expectedIds, actualIds)
                 .containsExactlyInAnyOrderElementsOf(expectedIds);
+    }
+
+    @Then("the response list should contain an object with name {string}")
+    public void theResponseListShouldContainAnObjectWithName(String expectedName) {
+        List<ApiObject> objects = Arrays.asList(response().as(ApiObject[].class));
+        List<String> names = objects.stream()
+                .map(ApiObject::getName)
+                .collect(Collectors.toList());
+        assertThat(names)
+                .as("Expected list to contain an object named '%s' but found: %s", expectedName, names)
+                .contains(expectedName);
+    }
+
+    @Then("every object in the response should have a non-null {string}")
+    public void everyObjectInTheResponseShouldHaveANonNull(String field) {
+        JsonPath json = response().jsonPath();
+        List<Object> values = json.getList(field);
+        assertThat(values)
+                .as("Every object should have a non-null '%s' field", field)
+                .isNotEmpty()
+                .allSatisfy(v -> assertThat(v).isNotNull());
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Then — JSON Path assertions
+    // ═══════════════════════════════════════════════════════════════════════
+
+    @Then("the JSON path {string} should equal {string}")
+    public void theJsonPathShouldEqual(String jsonPath, String expectedValue) {
+        Object actual = response().jsonPath().get(jsonPath);
+        assertThat(String.valueOf(actual))
+                .as("JSON path '%s' expected '%s' but was '%s'", jsonPath, expectedValue, actual)
+                .isEqualTo(expectedValue);
+    }
+
+    @Then("the JSON path {string} should not be null")
+    public void theJsonPathShouldNotBeNull(String jsonPath) {
+        Object actual = response().jsonPath().get(jsonPath);
+        assertThat(actual)
+                .as("JSON path '%s' should not be null", jsonPath)
+                .isNotNull();
     }
 
     // ═══════════════════════════════════════════════════════════════════════

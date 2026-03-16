@@ -15,7 +15,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 @CucumberContextConfiguration
 @SpringBootTest(
         classes = RestfulApiApplication.class,
-        webEnvironment = SpringBootTest.WebEnvironment.NONE
+        webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT
 )
 public class CucumberSpringConfiguration {
     // intentionally empty — configuration is provided via annotations

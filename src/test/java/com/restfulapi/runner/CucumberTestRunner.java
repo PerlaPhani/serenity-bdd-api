@@ -23,6 +23,7 @@ import org.junit.runner.RunWith;
         glue = {
                 "com.restfulapi.config",
                 "com.restfulapi.context",
+                "com.restfulapi.hooks",
                 "com.restfulapi.stepdefs"
         },
         tags = "not @wip",
