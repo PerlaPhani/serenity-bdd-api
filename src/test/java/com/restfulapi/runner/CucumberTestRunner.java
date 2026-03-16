@@ -10,15 +10,7 @@ import static io.cucumber.junit.platform.engine.Constants.PLUGIN_PROPERTY_NAME;
 
 /**
  * Entry point for the Cucumber test suite (JUnit 5 Platform Suite).
- *
- * <p>Maven Failsafe picks this up via the include pattern
- * {@code *Runner.java} in the {@code runner} package during the
- * {@code integration-test} phase.
- *
- * <p>Override the tag filter at runtime:
- * <pre>
  *   mvn clean verify -Dcucumber.filter.tags="@smoke"
- * </pre>
  */
 @Suite
 @IncludeEngines("cucumber")

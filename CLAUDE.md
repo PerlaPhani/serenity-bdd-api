@@ -15,22 +15,53 @@ A BDD test automation framework for CRUD operations against a REST API that mirr
 | Test Orchestration | SerenityBDD                 | 4.2.34   |
 | HTTP Client      | REST-Assured (via SerenityRest) | 5.3.2  |
 | Assertions       | AssertJ + REST-Assured JsonPath |        |
+| Validation       | Jakarta Bean Validation (spring-boot-starter-validation) | 3.0 |
 | Boilerplate      | Lombok                        | 1.18.38  |
 | Test Runner      | JUnit 5 Platform Suite (`@Suite` + `cucumber-junit-platform-engine`) |  |
 
 ## Architecture
 
+### Layered Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                     Controller                          │
+│  ObjectController (@Valid, thin delegation)              │
+├─────────────────────────────────────────────────────────┤
+│                      Service                            │
+│  ObjectService (business logic, throws exceptions)      │
+├─────────────────────────────────────────────────────────┤
+│                     Repository                          │
+│  ObjectRepository (interface)                           │
+│  └── InMemoryObjectRepository (ConcurrentHashMap, seed) │
+├─────────────────────────────────────────────────────────┤
+│               Cross-cutting Concerns                    │
+│  GlobalExceptionHandler ── ObjectNotFoundException      │
+│  ObjectMapper (Entity ↔ DTO)                            │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Package Structure
+
 ```
 src/main/java/com/restfulapi/
-├── RestfulApiApplication.java          # Spring Boot entry point
-├── config/ApiConfig.java               # Externalized API configuration
-├── constants/Endpoints.java            # URI path constants
-├── controller/ObjectController.java    # REST controller (GET/POST/PUT/PATCH/DELETE)
-├── helper/ApiHelper.java               # Single HTTP client (SerenityRest)
-├── model/
-│   ├── ApiObject.java                  # Response model
-│   └── CreateObjectRequest.java        # Request payload model
-└── service/ObjectService.java          # In-memory CRUD service with seed data
+├── RestfulApiApplication.java              # Spring Boot entry point
+├── config/ApiConfig.java                   # Externalized API configuration
+├── constants/Endpoints.java                # URI path constants
+├── controller/ObjectController.java        # REST controller — thin, @Valid, delegates to service
+├── dto/
+│   ├── CreateObjectRequest.java            # Request DTO (@NotNull on name)
+│   └── ObjectResponse.java                 # Response DTO (@JsonInclude NON_NULL)
+├── entity/ObjectEntity.java                # Persistence model (no Jackson annotations)
+├── exception/
+│   ├── GlobalExceptionHandler.java         # @RestControllerAdvice (404 + validation errors)
+│   └── ObjectNotFoundException.java        # Domain exception → 404
+├── helper/ApiHelper.java                   # Single HTTP client (SerenityRest)
+├── mapper/ObjectMapper.java                # Static Entity ↔ DTO conversions
+├── repository/
+│   ├── ObjectRepository.java               # Repository interface
+│   └── InMemoryObjectRepository.java       # @Repository — ConcurrentHashMap + seed data
+└── service/ObjectService.java              # Business logic — uses repository + mapper
 
 src/test/java/com/restfulapi/
 ├── config/CucumberSpringConfiguration.java  # Spring Boot test context bridge
@@ -57,14 +88,20 @@ src/test/resources/
 
 ## Design Principles
 
-1. **Single Responsibility** — `ApiHelper` is the only class that calls SerenityRest/REST-Assured
-2. **Dependency Injection** — All beans wired via Spring `@Autowired`, no manual instantiation
-3. **Given/When/Then Separation** — Given steps build requests, When steps invoke APIs, Then steps assert responses
-4. **Scenario Isolation** — `ScenarioContext` uses `cucumber-glue` scope (fresh per scenario) + `@After` hook cleans up created objects
-5. **Builder Pattern Steps** — Incremental request construction across Given steps (name, CPU model, price)
-6. **Configuration-Driven** — All connection properties externalized via Spring profiles + `application-{profile}.properties`
-7. **Serenity Reporting** — Every `ApiHelper` method annotated with `@Step` for rich HTML reports
-8. **Environment Portability** — Same test suite runs against local and dev via `-Dspring.profiles.active`
+1. **Layered Architecture** — Controller → Service → Repository with clear separation of concerns
+2. **Single Responsibility** — `ApiHelper` is the only class that calls SerenityRest/REST-Assured
+3. **DTO/Entity Separation** — DTOs carry Jackson annotations for API contract; entities are plain persistence models
+4. **Centralized Error Handling** — `GlobalExceptionHandler` (`@RestControllerAdvice`) owns all error responses; controller has no inline error logic
+5. **Repository Pattern** — `ObjectRepository` interface abstracts storage; `InMemoryObjectRepository` is the current implementation (swappable for JPA/Mongo)
+6. **Service Throws Exceptions** — Service methods throw `ObjectNotFoundException` instead of returning `Optional`, keeping the controller thin
+7. **Bean Validation** — `@Valid` on controller request bodies + `@NotNull` on DTO fields; validation errors handled by `GlobalExceptionHandler`
+8. **Dependency Injection** — All beans wired via Spring constructor injection, no manual instantiation
+9. **Given/When/Then Separation** — Given steps build requests, When steps invoke APIs, Then steps assert responses
+10. **Scenario Isolation** — `ScenarioContext` uses `cucumber-glue` scope (fresh per scenario) + `@After` hook cleans up created objects
+11. **Builder Pattern Steps** — Incremental request construction across Given steps (name, CPU model, price)
+12. **Configuration-Driven** — All connection properties externalized via Spring profiles + `application-{profile}.properties`
+13. **Serenity Reporting** — Every `ApiHelper` method annotated with `@Step` for rich HTML reports
+14. **Environment Portability** — Same test suite runs against local and dev via `-Dspring.profiles.active`
 
 ## Multi-Environment Support
 
@@ -185,10 +222,6 @@ Default profile is `local` (set in `pom.xml`). Override with `-Dspring.profiles.
 
 ## Conventions
 
-- Feature files live in `src/test/resources/features/` (one per API capability)
-- Step definitions live in `com.restfulapi.stepdefs`
-- `@wip` tag excludes scenarios from default runs
 - Cleanup hooks auto-delete objects created during scenarios
-- Numeric string values are auto-coerced to Long/Double via `coerce()` helper
 - Profile-specific properties only override `api.base-url` and `server.port`
 - `junit-platform.properties` resolves ObjectFactory SPI conflict between `serenity-cucumber` and `cucumber-spring`

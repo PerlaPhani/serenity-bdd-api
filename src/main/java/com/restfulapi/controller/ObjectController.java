@@ -1,8 +1,9 @@
 package com.restfulapi.controller;
 
-import com.restfulapi.model.ApiObject;
-import com.restfulapi.model.CreateObjectRequest;
+import com.restfulapi.dto.CreateObjectRequest;
+import com.restfulapi.dto.ObjectResponse;
 import com.restfulapi.service.ObjectService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,17 +18,27 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * REST controller for /objects endpoints.
+ * - Delegates all business logic to ObjectService - single dependency, constructor-injected
+ * - GET /objects — list all objects, with optional ?id= query param filtering
+ * - GET /objects/{id} — retrieve a single object by ID
+ * - POST /objects — create a new object (@Valid request body)
+ * - PUT /objects/{id} — full replacement update (@Valid request body)
+ * - PATCH /objects/{id} — partial merge update (no @Valid, allows partial payloads)
+ * - DELETE /objects/{id} — delete by ID, returns a confirmation message map
+ * - Bean validation via @Valid on POST and PUT
+ * - Returns ResponseEntity wrappers using DTOs (ObjectResponse, CreateObjectRequest)
+ */
 @RestController
 public class ObjectController {
-
     private final ObjectService objectService;
-
     public ObjectController(ObjectService objectService) {
         this.objectService = objectService;
     }
 
     @GetMapping("/objects")
-    public ResponseEntity<?> getObjects(@RequestParam(name = "id", required = false) List<String> ids) {
+    public ResponseEntity<List<ObjectResponse>> getObjects(@RequestParam(name = "id", required = false) List<String> ids) {
         if (ids != null && !ids.isEmpty()) {
             return ResponseEntity.ok(objectService.getByIds(ids));
         }
@@ -35,40 +46,28 @@ public class ObjectController {
     }
 
     @GetMapping("/objects/{id}")
-    public ResponseEntity<?> getObjectById(@PathVariable String id) {
-        return objectService.getById(id)
-                .<ResponseEntity<?>>map(ResponseEntity::ok)
-                .orElse(ResponseEntity.status(404)
-                        .body(Map.of("error", "Oops! Object with id=" + id + " was not found.")));
+    public ResponseEntity<ObjectResponse> getObjectById(@PathVariable String id) {
+        return ResponseEntity.ok(objectService.getById(id));
     }
 
     @PostMapping("/objects")
-    public ResponseEntity<ApiObject> createObject(@RequestBody CreateObjectRequest request) {
+    public ResponseEntity<ObjectResponse> createObject(@Valid @RequestBody CreateObjectRequest request) {
         return ResponseEntity.ok(objectService.create(request));
     }
 
     @PutMapping("/objects/{id}")
-    public ResponseEntity<?> updateObject(@PathVariable String id, @RequestBody CreateObjectRequest request) {
-        return objectService.update(id, request)
-                .<ResponseEntity<?>>map(ResponseEntity::ok)
-                .orElse(ResponseEntity.status(404)
-                        .body(Map.of("error", "Oops! Object with id=" + id + " was not found.")));
+    public ResponseEntity<ObjectResponse> updateObject(@PathVariable String id, @Valid @RequestBody CreateObjectRequest request) {
+        return ResponseEntity.ok(objectService.update(id, request));
     }
 
     @PatchMapping("/objects/{id}")
-    public ResponseEntity<?> partialUpdateObject(@PathVariable String id, @RequestBody CreateObjectRequest request) {
-        return objectService.partialUpdate(id, request)
-                .<ResponseEntity<?>>map(ResponseEntity::ok)
-                .orElse(ResponseEntity.status(404)
-                        .body(Map.of("error", "Oops! Object with id=" + id + " was not found.")));
+    public ResponseEntity<ObjectResponse> partialUpdateObject(@PathVariable String id, @RequestBody CreateObjectRequest request) {
+        return ResponseEntity.ok(objectService.partialUpdate(id, request));
     }
 
     @DeleteMapping("/objects/{id}")
-    public ResponseEntity<?> deleteObject(@PathVariable String id) {
-        if (objectService.delete(id)) {
-            return ResponseEntity.ok(Map.of("message", "Object with id = " + id + " has been deleted."));
-        }
-        return ResponseEntity.status(404)
-                .body(Map.of("error", "Oops! Object with id=" + id + " was not found."));
+    public ResponseEntity<Map<String, String>> deleteObject(@PathVariable String id) {
+        objectService.delete(id);
+        return ResponseEntity.ok(Map.of("message", "Object with id = " + id + " has been deleted."));
     }
 }
