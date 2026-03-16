@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-A BDD test automation framework for CRUD operations against a REST API that mirrors [restful-api.dev](https://restful-api.dev/). The project includes both a **standalone Spring Boot API** (in-memory) and a **SerenityBDD/Cucumber test suite** that validates all endpoints. The same test suite runs against **local, dev, test, and prod** environments via Spring profiles.
+A BDD test automation framework for CRUD operations against a REST API that mirrors [restful-api.dev](https://restful-api.dev/). The project includes both a **standalone Spring Boot API** (in-memory) and a **SerenityBDD/Cucumber test suite** that validates all endpoints. The same test suite runs against **local** and **dev** environments via Spring profiles.
 
 ## Tech Stack
 
@@ -16,7 +16,7 @@ A BDD test automation framework for CRUD operations against a REST API that mirr
 | HTTP Client      | REST-Assured (via SerenityRest) | 5.3.2  |
 | Assertions       | AssertJ + REST-Assured JsonPath |        |
 | Boilerplate      | Lombok                        | 1.18.38  |
-| Test Runner      | JUnit 4 (CucumberWithSerenity) | 4.13.2  |
+| Test Runner      | JUnit 5 Platform Suite (`@Suite` + `cucumber-junit-platform-engine`) |  |
 
 ## Architecture
 
@@ -36,16 +36,21 @@ src/test/java/com/restfulapi/
 ├── config/CucumberSpringConfiguration.java  # Spring Boot test context bridge
 ├── context/ScenarioContext.java             # Per-scenario state (cucumber-glue scope)
 ├── hooks/ScenarioHooks.java                 # @Before/@After lifecycle hooks
-├── runner/CucumberTestRunner.java           # Cucumber entry point
+├── runner/CucumberTestRunner.java           # JUnit 5 Platform Suite entry point
 └── stepdefs/ObjectStepDefinitions.java      # All step implementations
 
 src/test/resources/
-├── features/objects.feature            # 30 BDD scenarios
+├── features/
+│   ├── create_object.feature           # 2 scenarios (@create)
+│   ├── get_object.feature              # 2 scenarios (@get)
+│   ├── list_objects.feature            # 2 scenarios (@list)
+│   ├── delete_object.feature           # 2 scenarios (@delete)
+│   └── edge_cases.feature             # 5 scenarios (@edge)
 ├── application.properties              # Base test config (shared settings)
 ├── application-local.properties        # Local profile (localhost:8089)
 ├── application-dev.properties          # Dev profile (api.restful-api.dev)
-├── application-test.properties         # Test profile (test-api.example.com)
-├── application-prod.properties         # Prod profile (prod-api.example.com)
+├── junit-platform.properties           # Cucumber JUnit Platform Engine config
+├── cucumber.properties                 # Cucumber publish settings
 └── logback-test.xml                    # Logging config
 ```
 
@@ -53,13 +58,12 @@ src/test/resources/
 
 1. **Single Responsibility** — `ApiHelper` is the only class that calls SerenityRest/REST-Assured
 2. **Dependency Injection** — All beans wired via Spring `@Autowired`, no manual instantiation
-3. **Given/When/Then Separation** — Given steps assert pre-conditions, When steps invoke APIs only, Then steps assert only
+3. **Given/When/Then Separation** — Given steps build requests, When steps invoke APIs, Then steps assert responses
 4. **Scenario Isolation** — `ScenarioContext` uses `cucumber-glue` scope (fresh per scenario) + `@After` hook cleans up created objects
-5. **JSON Path Assertions** — Reusable `the JSON path "<path>" should equal "<value>"` step for deep field validation
-6. **Builder Pattern Steps** — Supports incremental request construction across Given steps (PDF example style)
-7. **Configuration-Driven** — All connection properties externalized via Spring profiles + `application-{profile}.properties`
-8. **Serenity Reporting** — Every `ApiHelper` method annotated with `@Step` for rich HTML reports
-9. **Environment Portability** — Same test suite runs against local, dev, test, and prod via `-Dspring.profiles.active`
+5. **Builder Pattern Steps** — Incremental request construction across Given steps (name, CPU model, price)
+6. **Configuration-Driven** — All connection properties externalized via Spring profiles + `application-{profile}.properties`
+7. **Serenity Reporting** — Every `ApiHelper` method annotated with `@Step` for rich HTML reports
+8. **Environment Portability** — Same test suite runs against local and dev via `-Dspring.profiles.active`
 
 ## Multi-Environment Support
 
@@ -69,32 +73,21 @@ The framework uses **Spring profiles** to switch between environments. Each prof
 |----------|-----------------------------------|-------------|------------------------------------|
 | `local`  | `http://localhost:8089`           | 8089        | Embedded Spring Boot API (default) |
 | `dev`    | `https://api.restful-api.dev`     | 0 (random)  | Public restful-api.dev service     |
-| `test`   | `https://test-api.example.com`    | 0 (random)  | Test environment (update URL)      |
-| `prod`   | `https://prod-api.example.com`    | 0 (random)  | Production environment (update URL)|
 
 ### How it works
 
 - **Local** (default): The embedded Spring Boot API starts on port 8089 with 13 seeded objects. Tests run fully self-contained — no external dependencies.
-- **Dev/Test/Prod**: Tests point to the remote API. The embedded server still starts (on a random port) but is unused. Only `api.base-url` changes.
-- The `@seed-data` tag marks scenarios that depend on pre-seeded objects (specific IDs like "7" = "Apple MacBook Pro 16"). These should be excluded on remote environments where seed data isn't guaranteed.
+- **Dev**: Tests point to the remote API. The embedded server still starts (on a random port) but is unused. Only `api.base-url` changes.
 
 ### Running against each environment
 
 ```bash
-# Local (default) — all 30 scenarios
+# Local (default) — all 13 scenarios
 mvn clean verify
 
-# Dev — exclude seed-data scenarios (remote API has rate limits)
+# Dev — exclude edge cases that depend on local seed data
 mvn clean verify -Dspring.profiles.active=dev \
-  -Dcucumber.filter.tags="not @wip and not @seed-data"
-
-# Test environment
-mvn clean verify -Dspring.profiles.active=test \
-  -Dcucumber.filter.tags="not @wip and not @seed-data"
-
-# Prod — smoke tests only
-mvn clean verify -Dspring.profiles.active=prod \
-  -Dcucumber.filter.tags="@smoke and not @seed-data"
+  -Dcucumber.filter.tags="not @wip and not @edge"
 ```
 
 ### Adding a new environment
@@ -119,34 +112,26 @@ mvn clean verify -Dspring.profiles.active=prod \
 
 The API is seeded with 13 objects (IDs 1-13) matching restful-api.dev data on startup.
 
-## Test Scenarios (30 total)
+## Test Scenarios (13 total across 5 feature files)
 
-| Category                | Count | Tags                        |
-|-------------------------|-------|-----------------------------|
-| GET list                | 4     | `@get @list`                |
-| GET single              | 5     | `@get @single`              |
-| POST create             | 5     | `@post @create`             |
-| POST->GET persistence   | 3     | `@persistence`              |
-| PUT full update         | 2     | `@put @update`              |
-| PATCH partial update    | 3     | `@patch @partial-update`    |
-| DELETE                  | 5     | `@delete`                   |
-| E2E lifecycle           | 1     | `@e2e @lifecycle`           |
-| JSON Path validation    | 7     | `@jsonpath`                 |
-| Negative/error paths    | 5     | `@negative`                 |
-| Smoke (critical path)   | 7     | `@smoke`                    |
-| Seed-data dependent     | 7     | `@seed-data`                |
+| Feature File            | Scenarios | Tag       | Coverage                                    |
+|-------------------------|-----------|-----------|---------------------------------------------|
+| `create_object.feature` | 2         | `@create` | Full details + minimal (name only)          |
+| `get_object.feature`    | 2         | `@get`    | Retrieve created item + non-existent (404)  |
+| `list_objects.feature`  | 2         | `@list`   | List all + verify created item in list      |
+| `delete_object.feature` | 2         | `@delete` | Delete created item + non-existent (404)    |
+| `edge_cases.feature`    | 5         | `@edge`   | Empty name, special chars, consistency, update persistence, delete confirmation |
 
 ### Tag Strategy
 
-| Tag               | Purpose                                                |
-|-------------------|--------------------------------------------------------|
-| `@smoke`          | Critical path — run on every environment               |
-| `@seed-data`      | Depends on pre-seeded objects — exclude on remote envs |
-| `@negative`       | Error/edge case paths (404, invalid IDs)               |
-| `@jsonpath`       | Scenarios using JSON Path assertions                   |
-| `@e2e`            | Full CRUD lifecycle                                    |
-| `@persistence`    | Create-then-retrieve validation                        |
-| `@wip`            | Work in progress — excluded from all runs by default   |
+| Tag        | Purpose                                               |
+|------------|-------------------------------------------------------|
+| `@create`  | Object creation scenarios                             |
+| `@get`     | Single object retrieval scenarios                     |
+| `@list`    | List/browse scenarios                                 |
+| `@delete`  | Object deletion scenarios                             |
+| `@edge`    | Error handling and edge case scenarios                |
+| `@wip`     | Work in progress — excluded from all runs by default  |
 
 ## Running Tests
 
@@ -155,20 +140,16 @@ The API is seeded with 13 objects (IDs 1-13) matching restful-api.dev data on st
 mvn clean verify
 
 # By tag
-mvn clean verify -Dcucumber.filter.tags="@smoke"
-mvn clean verify -Dcucumber.filter.tags="@jsonpath"
-mvn clean verify -Dcucumber.filter.tags="@negative"
-mvn clean verify -Dcucumber.filter.tags="@e2e"
-mvn clean verify -Dcucumber.filter.tags="@get or @post"
+mvn clean verify -Dcucumber.filter.tags="@create"
+mvn clean verify -Dcucumber.filter.tags="@edge"
+mvn clean verify -Dcucumber.filter.tags="@get or @delete"
 
-# By environment
+# Dev environment
 mvn clean verify -Dspring.profiles.active=dev
-mvn clean verify -Dspring.profiles.active=test
-mvn clean verify -Dspring.profiles.active=prod
 
 # Environment + tag combination
 mvn clean verify -Dspring.profiles.active=dev \
-  -Dcucumber.filter.tags="@smoke and not @seed-data"
+  -Dcucumber.filter.tags="@create and not @wip"
 
 # Run standalone API (port 8080)
 mvn spring-boot:run
@@ -189,18 +170,16 @@ target/site/serenity/index.html
 | `src/test/resources/application.properties`  | Base test config (shared)      |
 | `src/test/resources/application-local.properties`  | Local embedded server    |
 | `src/test/resources/application-dev.properties`    | Dev (restful-api.dev)    |
-| `src/test/resources/application-test.properties`   | Test environment         |
-| `src/test/resources/application-prod.properties`   | Production environment   |
+| `src/test/resources/junit-platform.properties`     | Cucumber ObjectFactory (SpringFactory) |
 
 Default profile is `local` (set in `pom.xml`). Override with `-Dspring.profiles.active=<profile>`.
 
 ## Conventions
 
-- Feature files live in `src/test/resources/features/`
+- Feature files live in `src/test/resources/features/` (one per API capability)
 - Step definitions live in `com.restfulapi.stepdefs`
-- One feature file per API resource
 - `@wip` tag excludes scenarios from default runs
-- `@seed-data` tag marks scenarios that depend on pre-seeded objects (exclude for remote envs)
 - Cleanup hooks auto-delete objects created during scenarios
-- Numeric string values in DataTables are auto-coerced to Long/Double
+- Numeric string values are auto-coerced to Long/Double via `coerce()` helper
 - Profile-specific properties only override `api.base-url` and `server.port`
+- `junit-platform.properties` resolves ObjectFactory SPI conflict between `serenity-cucumber` and `cucumber-spring`

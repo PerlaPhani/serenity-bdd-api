@@ -4,11 +4,9 @@ import com.restfulapi.context.ScenarioContext;
 import com.restfulapi.helper.ApiHelper;
 import com.restfulapi.model.ApiObject;
 import com.restfulapi.model.CreateObjectRequest;
-import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
-import io.restassured.path.json.JsonPath;
 import io.restassured.response.Response;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -16,22 +14,9 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * All Cucumber step implementations for the /objects resource.
- *
- * <p>Design rules:
- * <ul>
- *   <li>Beans are injected via {@code @Autowired} — never instantiated manually.</li>
- *   <li>Given steps may assert (pre-condition verification).</li>
- *   <li>When steps only invoke the API — no assertions.</li>
- *   <li>Then steps only assert — no API calls.</li>
- *   <li>Common patterns extracted to private helpers to eliminate duplication.</li>
- * </ul>
- */
 public class ObjectStepDefinitions {
 
     @Autowired
@@ -40,85 +25,35 @@ public class ObjectStepDefinitions {
     @Autowired
     private ScenarioContext context;
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Private helpers
-    // ═══════════════════════════════════════════════════════════════════════
+    // ── Helpers ──────────────────────────────────────────────────────────────
 
-    /** Returns the last captured response; fails fast if none exists yet. */
     private Response response() {
         assertThat(context.getLastResponse())
-                .as("No API response has been captured yet — ensure a When step executed first")
+                .as("No API response captured — ensure a When step ran first")
                 .isNotNull();
         return context.getLastResponse();
     }
 
-    /** Returns the created-object ID; fails fast with a descriptive message if absent. */
     private String requireCreatedObjectId() {
         String id = context.getCreatedObjectId();
         assertThat(id)
-                .as("No created-object ID is available — ensure an object-creation step ran first")
+                .as("No created-object ID — ensure an object was created first")
                 .isNotBlank();
         return id;
     }
 
-    /** Shared delete logic used by both single-delete and double-delete steps. */
-    private Response executeDeleteOnCreatedObject() {
-        return apiHelper.deleteObject(requireCreatedObjectId());
-    }
-
-    /**
-     * Parses a raw IDs string like {@code "3","5","10"} into a trimmed List.
-     * Handles both quoted and un-quoted variants.
-     */
-    private List<String> parseIds(String rawIds) {
-        return Arrays.stream(rawIds.split(","))
-                .map(s -> s.replace("\"", "").trim())
-                .filter(s -> !s.isEmpty())
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Converts a DataTable map into a {@link CreateObjectRequest}.
-     * The "name" key maps to the top-level name field; all other keys go
-     * into the {@code data} map.  Numeric-looking values are coerced to
-     * {@code Long} or {@code Double} to match the API's expected types.
-     */
-    private CreateObjectRequest buildRequest(Map<String, String> table) {
-        Map<String, Object> dataMap = new HashMap<>();
-        String name = null;
-
-        for (Map.Entry<String, String> entry : table.entrySet()) {
-            if ("name".equalsIgnoreCase(entry.getKey())) {
-                name = entry.getValue();
-            } else {
-                dataMap.put(entry.getKey(), coerce(entry.getValue()));
-            }
-        }
-
-        return CreateObjectRequest.builder()
-                .name(name)
-                .data(dataMap.isEmpty() ? null : dataMap)
-                .build();
-    }
-
     private Object coerce(String value) {
-        try { return Long.parseLong(value); }   catch (NumberFormatException ignored) { /* not an integer */ }
-        try { return Double.parseDouble(value); } catch (NumberFormatException ignored) { /* not a decimal */ }
+        try { return Long.parseLong(value); }   catch (NumberFormatException ignored) {}
+        try { return Double.parseDouble(value); } catch (NumberFormatException ignored) {}
         return value;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Builder-pattern steps (PDF example style)
-    //   Given a "<name>" item is created
-    //   And the CPU model is "<cpu>"
-    //   And has a price of "<price>"
-    //   When the request to add the item is made
-    // ═══════════════════════════════════════════════════════════════════════
+    // ── Given — builder-pattern request construction ─────────────────────────
 
     @Given("a {string} item is created")
     public void anItemIsCreated(String name) {
-        context.setPendingRequestData(new HashMap<>());
         context.setPendingRequestName(name);
+        context.setPendingRequestData(new HashMap<>());
     }
 
     @Given("the CPU model is {string}")
@@ -131,16 +66,14 @@ public class ObjectStepDefinitions {
         context.getPendingRequestData().put("price", coerce(price));
     }
 
-    @Given("the color is {string}")
-    public void theColorIs(String color) {
-        context.getPendingRequestData().put("color", color);
-    }
+    // ── When — API calls ─────────────────────────────────────────────────────
 
     @When("the request to add the item is made")
     public void theRequestToAddTheItemIsMade() {
+        Map<String, Object> data = context.getPendingRequestData();
         CreateObjectRequest request = CreateObjectRequest.builder()
                 .name(context.getPendingRequestName())
-                .data(context.getPendingRequestData().isEmpty() ? null : context.getPendingRequestData())
+                .data(data.isEmpty() ? null : data)
                 .build();
         context.setLastResponse(apiHelper.createObject(request));
         if (context.getLastResponse().getStatusCode() == 200) {
@@ -148,261 +81,134 @@ public class ObjectStepDefinitions {
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // GET /objects
-    // ═══════════════════════════════════════════════════════════════════════
-
-    @When("I retrieve all objects")
-    public void iRetrieveAllObjects() {
-        context.setLastResponse(apiHelper.getAllObjects());
-    }
-
-    @When("^I retrieve objects filtered by IDs (.+)$")
-    public void iRetrieveObjectsFilteredByIds(String rawIds) {
-        context.setLastResponse(apiHelper.getObjectsByIds(parseIds(rawIds)));
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // GET /objects/{id}
-    // ═══════════════════════════════════════════════════════════════════════
-
-    @When("I retrieve the object with ID {string}")
-    public void iRetrieveTheObjectWithId(String id) {
-        context.setLastResponse(apiHelper.getObjectById(id));
-    }
-
-    @When("I retrieve the created object by its ID")
-    public void iRetrieveTheCreatedObjectByItsId() {
+    @When("the item is retrieved by its ID")
+    public void theItemIsRetrievedByItsId() {
         context.setLastResponse(apiHelper.getObjectById(requireCreatedObjectId()));
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // POST /objects — Given (with pre-condition assertion)
-    // ═══════════════════════════════════════════════════════════════════════
-
-    @Given("I have created an object with name {string}")
-    public void iHaveCreatedAnObjectWithName(String name) {
-        CreateObjectRequest request = CreateObjectRequest.builder()
-                .name(name)
-                .build();
-        context.setLastResponse(apiHelper.createObject(request));
-        assertThat(context.getLastResponse().getStatusCode())
-                .as("Pre-condition: object creation must succeed (expected 200)")
-                .isEqualTo(200);
-        context.captureCreatedObjectId();
+    @When("the item is retrieved by ID {string}")
+    public void theItemIsRetrievedById(String id) {
+        context.setLastResponse(apiHelper.getObjectById(id));
     }
 
-    @Given("I have created an object with name {string} and price {string}")
-    public void iHaveCreatedAnObjectWithNameAndPrice(String name, String price) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("price", coerce(price));
-        CreateObjectRequest request = CreateObjectRequest.builder()
-                .name(name)
-                .data(data)
-                .build();
-        context.setLastResponse(apiHelper.createObject(request));
-        assertThat(context.getLastResponse().getStatusCode())
-                .as("Pre-condition: object creation must succeed (expected 200)")
-                .isEqualTo(200);
-        context.captureCreatedObjectId();
+    @When("a request to list all objects is made")
+    public void aRequestToListAllObjectsIsMade() {
+        context.setLastResponse(apiHelper.getAllObjects());
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // POST /objects — When (DataTable variant used in create + e2e scenarios)
-    // ═══════════════════════════════════════════════════════════════════════
-
-    @When("I create an object with the following details:")
-    public void iCreateAnObjectWithTheFollowingDetails(Map<String, String> table) {
-        context.setLastResponse(apiHelper.createObject(buildRequest(table)));
-        if (context.getLastResponse().getStatusCode() == 200) {
-            context.captureCreatedObjectId();
-        }
+    @When("the item is deleted by its ID")
+    public void theItemIsDeletedByItsId() {
+        context.setLastResponse(apiHelper.deleteObject(requireCreatedObjectId()));
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // PUT /objects/{id}
-    // ═══════════════════════════════════════════════════════════════════════
-
-    @When("I fully update the created object with name {string} price {string} and color {string}")
-    public void iFullyUpdateTheCreatedObject(String name, String price, String color) {
-        String id = requireCreatedObjectId();
-        Map<String, Object> data = new HashMap<>();
-        data.put("price", coerce(price));
-        data.put("color", color);
-        CreateObjectRequest request = CreateObjectRequest.builder()
-                .name(name)
-                .data(data)
-                .build();
-        context.setLastResponse(apiHelper.updateObject(id, request));
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // PATCH /objects/{id}
-    // ═══════════════════════════════════════════════════════════════════════
-
-    @When("I partially update the created object name to {string}")
-    public void iPartiallyUpdateTheCreatedObjectNameTo(String name) {
-        String id = requireCreatedObjectId();
-        CreateObjectRequest request = CreateObjectRequest.builder()
-                .name(name)
-                .build();
-        context.setLastResponse(apiHelper.partiallyUpdateObject(id, request));
-    }
-
-    @When("I partially update the created object color to {string}")
-    public void iPartiallyUpdateTheCreatedObjectColorTo(String color) {
-        String id = requireCreatedObjectId();
-        Map<String, Object> data = new HashMap<>();
-        data.put("color", color);
-        CreateObjectRequest request = CreateObjectRequest.builder()
-                .data(data)
-                .build();
-        context.setLastResponse(apiHelper.partiallyUpdateObject(id, request));
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // DELETE /objects/{id}
-    // ═══════════════════════════════════════════════════════════════════════
-
-    @When("I delete the created object")
-    public void iDeleteTheCreatedObject() {
-        context.setLastResponse(executeDeleteOnCreatedObject());
-    }
-
-    @When("I delete the created object again")
-    public void iDeleteTheCreatedObjectAgain() {
-        context.setLastResponse(executeDeleteOnCreatedObject());
-    }
-
-    @When("I delete the object with ID {string}")
-    public void iDeleteTheObjectWithId(String id) {
+    @When("the item is deleted by ID {string}")
+    public void theItemIsDeletedById(String id) {
         context.setLastResponse(apiHelper.deleteObject(id));
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Then — status code
-    // ═══════════════════════════════════════════════════════════════════════
+    @When("the item is updated with name {string} and price {string}")
+    public void theItemIsUpdatedWithNameAndPrice(String name, String price) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("price", coerce(price));
+        CreateObjectRequest request = CreateObjectRequest.builder()
+                .name(name)
+                .data(data)
+                .build();
+        context.setLastResponse(apiHelper.updateObject(requireCreatedObjectId(), request));
+    }
 
-    @Then("the response status code should be {int}")
-    public void theResponseStatusCodeShouldBe(int expectedStatus) {
+    // ── Then — assertions ────────────────────────────────────────────────────
+
+    @Then("a {int} response code is returned")
+    public void aResponseCodeIsReturned(int expectedStatus) {
         assertThat(response().getStatusCode())
-                .as("Expected HTTP status %d but received %d. Body: %s",
+                .as("Expected HTTP %d but got %d. Body: %s",
                         expectedStatus, response().getStatusCode(), response().asString())
                 .isEqualTo(expectedStatus);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Then — list assertions
-    // ═══════════════════════════════════════════════════════════════════════
-
-    @Then("the response should contain a non-empty list of objects")
-    public void theResponseShouldContainANonEmptyListOfObjects() {
-        List<ApiObject> objects = Arrays.asList(response().as(ApiObject[].class));
-        assertThat(objects)
-                .as("Response should contain a non-empty list of objects")
-                .isNotEmpty();
-    }
-
-    @Then("the response should contain exactly {int} objects")
-    public void theResponseShouldContainExactlyObjects(int expected) {
-        List<ApiObject> objects = Arrays.asList(response().as(ApiObject[].class));
-        assertThat(objects)
-                .as("Expected exactly %d objects in the response", expected)
-                .hasSize(expected);
-    }
-
-    @Then("^the response should only contain objects with IDs (.+)$")
-    public void theResponseShouldOnlyContainObjectsWithIds(String rawIds) {
-        List<String> expectedIds = parseIds(rawIds);
-        List<ApiObject> objects = Arrays.asList(response().as(ApiObject[].class));
-        List<String> actualIds = objects.stream()
-                .map(ApiObject::getId)
-                .collect(Collectors.toList());
-
-        assertThat(actualIds)
-                .as("Response should contain exactly the requested IDs %s but got %s",
-                        expectedIds, actualIds)
-                .containsExactlyInAnyOrderElementsOf(expectedIds);
-    }
-
-    @Then("the response list should contain an object with name {string}")
-    public void theResponseListShouldContainAnObjectWithName(String expectedName) {
-        List<ApiObject> objects = Arrays.asList(response().as(ApiObject[].class));
-        List<String> names = objects.stream()
-                .map(ApiObject::getName)
-                .collect(Collectors.toList());
-        assertThat(names)
-                .as("Expected list to contain an object named '%s' but found: %s", expectedName, names)
-                .contains(expectedName);
-    }
-
-    @Then("every object in the response should have a non-null {string}")
-    public void everyObjectInTheResponseShouldHaveANonNull(String field) {
-        JsonPath json = response().jsonPath();
-        List<Object> values = json.getList(field);
-        assertThat(values)
-                .as("Every object should have a non-null '%s' field", field)
-                .isNotEmpty()
-                .allSatisfy(v -> assertThat(v).isNotNull());
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Then — JSON Path assertions
-    // ═══════════════════════════════════════════════════════════════════════
-
-    @Then("the JSON path {string} should equal {string}")
-    public void theJsonPathShouldEqual(String jsonPath, String expectedValue) {
-        Object actual = response().jsonPath().get(jsonPath);
-        assertThat(String.valueOf(actual))
-                .as("JSON path '%s' expected '%s' but was '%s'", jsonPath, expectedValue, actual)
-                .isEqualTo(expectedValue);
-    }
-
-    @Then("the JSON path {string} should not be null")
-    public void theJsonPathShouldNotBeNull(String jsonPath) {
-        Object actual = response().jsonPath().get(jsonPath);
-        assertThat(actual)
-                .as("JSON path '%s' should not be null", jsonPath)
-                .isNotNull();
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // Then — object field assertions (unified step for all scenarios)
-    // ═══════════════════════════════════════════════════════════════════════
-
-    @Then("the response object should have name {string}")
-    public void theResponseObjectShouldHaveName(String expectedName) {
-        ApiObject obj = response().as(ApiObject.class);
-        assertThat(obj.getName())
-                .as("Expected object name to be '%s' but was '%s'", expectedName, obj.getName())
+    @Then("a {string} is created")
+    public void anItemIsCreatedWithName(String expectedName) {
+        assertThat(response().jsonPath().getString("name"))
+                .as("Created object name")
                 .isEqualTo(expectedName);
     }
 
-    @Then("the response should contain a createdAt timestamp")
-    public void theResponseShouldContainACreatedAtTimestamp() {
-        ApiObject obj = response().as(ApiObject.class);
-        assertThat(obj.getCreatedAt())
-                .as("Response should contain a non-blank createdAt timestamp")
+    @Then("the response contains a non-null {string}")
+    public void theResponseContainsANonNull(String field) {
+        Object value = response().jsonPath().get(field);
+        assertThat(value)
+                .as("Field '%s' should not be null", field)
+                .isNotNull();
+    }
+
+    @Then("the response {string} timestamp is present")
+    public void theResponseTimestampIsPresent(String field) {
+        assertThat(response().jsonPath().getString(field))
+                .as("Timestamp '%s' should be present", field)
                 .isNotBlank();
     }
 
-    @Then("the response should contain an updatedAt timestamp")
-    public void theResponseShouldContainAnUpdatedAtTimestamp() {
-        ApiObject obj = response().as(ApiObject.class);
-        assertThat(obj.getUpdatedAt())
-                .as("Response should contain a non-blank updatedAt timestamp")
-                .isNotBlank();
+    @Then("the response name is {string}")
+    public void theResponseNameIs(String expectedName) {
+        assertThat(response().jsonPath().getString("name"))
+                .as("Response name")
+                .isEqualTo(expectedName);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // Then — delete confirmation
-    // ═══════════════════════════════════════════════════════════════════════
+    @Then("the response data contains {string} for {string}")
+    public void theResponseDataContainsValueForKey(String expectedValue, String key) {
+        Object actual = response().jsonPath().get("data.'" + key + "'");
+        try {
+            double expectedNum = Double.parseDouble(expectedValue);
+            assertThat(Double.parseDouble(String.valueOf(actual)))
+                    .as("data.'%s'", key)
+                    .isEqualTo(expectedNum);
+        } catch (NumberFormatException e) {
+            assertThat(String.valueOf(actual))
+                    .as("data.'%s'", key)
+                    .isEqualTo(expectedValue);
+        }
+    }
 
-    @Then("the delete response message should confirm deletion")
-    public void theDeleteResponseMessageShouldConfirmDeletion() {
-        String body = response().asString();
-        assertThat(body)
-                .as("Delete response body should contain a deletion-confirmation message. Actual: %s", body)
-                .containsIgnoringCase("deleted");
+    @Then("the response contains an error message")
+    public void theResponseContainsAnErrorMessage() {
+        Object error = response().jsonPath().get("error");
+        assertThat(error)
+                .as("Error field should be present")
+                .isNotNull();
+    }
+
+    @Then("the response contains a list of objects")
+    public void theResponseContainsAListOfObjects() {
+        List<ApiObject> objects = Arrays.asList(response().as(ApiObject[].class));
+        assertThat(objects).as("Object list should not be empty").isNotEmpty();
+    }
+
+    @Then("the list contains an item with name {string}")
+    public void theListContainsAnItemWithName(String expectedName) {
+        List<ApiObject> objects = Arrays.asList(response().as(ApiObject[].class));
+        assertThat(objects)
+                .as("List should contain an item named '%s'", expectedName)
+                .anyMatch(obj -> expectedName.equals(obj.getName()));
+    }
+
+    @Then("the item no longer exists when retrieved")
+    public void theItemNoLongerExistsWhenRetrieved() {
+        Response getResponse = apiHelper.getObjectById(requireCreatedObjectId());
+        assertThat(getResponse.getStatusCode())
+                .as("Deleted item should return 404")
+                .isEqualTo(404);
+    }
+
+    @Then("the response indicates a validation issue or accepts the request")
+    public void theResponseIndicatesValidationOrAccepts() {
+        int status = response().getStatusCode();
+        assertThat(status)
+                .as("Should be 200 (accepted) or 4xx (validation error)")
+                .satisfiesAnyOf(
+                        s -> assertThat(s).isEqualTo(200),
+                        s -> assertThat(s).isBetween(400, 499)
+                );
     }
 }

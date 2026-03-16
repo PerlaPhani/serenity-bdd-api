@@ -10,9 +10,7 @@ import java.util.Map;
 
 /**
  * Per-scenario state store.
- *
- * <p>Spring's {@code "cucumber-glue"} scope ensures a fresh instance is
- * created for every Cucumber scenario — no manual cleanup required.
+ * Spring's {@code "cucumber-glue"} scope ensures a fresh instance per scenario.
  */
 @Component
 @Scope("cucumber-glue")
@@ -21,26 +19,18 @@ public class ScenarioContext {
 
     private Response lastResponse;
     private String createdObjectId;
-    private ApiObject lastCreatedObject;
 
-    /** Holds the item name while building a request via Given steps. */
+    /** Item name being built up across Given steps. */
     private String pendingRequestName;
 
-    /** Holds data fields accumulated across multiple Given steps before the When step fires. */
+    /** Data fields accumulated across Given steps before the When step fires. */
     private Map<String, Object> pendingRequestData;
 
-    /**
-     * Extracts the {@code id} from {@link #lastResponse} and caches it as
-     * {@link #createdObjectId}.  Also stores the full deserialized object.
-     *
-     * <p>Call this immediately after any step that creates an object.
-     */
+    /** Extracts and caches the ID from the last create response. */
     public void captureCreatedObjectId() {
         if (lastResponse == null) {
             return;
         }
-        ApiObject obj = lastResponse.as(ApiObject.class);
-        this.createdObjectId = obj.getId();
-        this.lastCreatedObject = obj;
+        this.createdObjectId = lastResponse.as(ApiObject.class).getId();
     }
 }
