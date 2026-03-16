@@ -7,19 +7,13 @@
         </encoder>
     </appender>
 
-    <!-- Root level -->
     <root level="INFO">
         <appender-ref ref="STDOUT"/>
     </root>
 
-    <!-- Verbose REST-Assured / Serenity HTTP traffic -->
     <logger name="io.restassured"          level="DEBUG"/>
     <logger name="net.serenitybdd.rest"    level="DEBUG"/>
-
-    <!-- Application packages -->
     <logger name="com.restfulapi"          level="DEBUG"/>
-
-    <!-- Quieten noisy Spring Boot startup logs -->
     <logger name="org.springframework"     level="WARN"/>
     <logger name="org.hibernate"           level="WARN"/>
 

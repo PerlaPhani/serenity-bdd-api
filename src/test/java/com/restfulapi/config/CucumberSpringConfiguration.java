@@ -18,5 +18,5 @@ import org.springframework.boot.test.context.SpringBootTest;
         webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT
 )
 public class CucumberSpringConfiguration {
-    // intentionally empty — configuration is provided via annotations
+    // configuration is provided via annotations
 }
