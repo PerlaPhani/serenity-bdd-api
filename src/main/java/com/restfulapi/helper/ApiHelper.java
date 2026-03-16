@@ -3,7 +3,6 @@ package com.restfulapi.helper;
 import com.restfulapi.config.ApiConfig;
 import com.restfulapi.constants.Endpoints;
 import com.restfulapi.model.CreateObjectRequest;
-import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
 import net.serenitybdd.annotations.Step;
@@ -37,8 +36,8 @@ public class ApiHelper {
     private RequestSpecification buildRequestSpec() {
         RequestSpecification spec = SerenityRest.given()
                 .baseUri(apiConfig.getBaseUrl())
-                .contentType(ContentType.JSON)
-                .accept(ContentType.JSON);
+                .header("Accept", "application/json")
+                .header("Content-Type", "application/json");
 
         if (apiConfig.getApiKey() != null && !apiConfig.getApiKey().isBlank()) {
             spec = spec.header("x-api-key", apiConfig.getApiKey());

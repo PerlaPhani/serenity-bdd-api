@@ -1,8 +1,5 @@
 @get
 Feature: Ability to return an item
-  As an API consumer
-  I want to retrieve objects by their ID
-  So that I can view the details of a specific item
 
   Scenario: Retrieve a previously created item by ID
     Given a "Samsung Galaxy S23" item is created

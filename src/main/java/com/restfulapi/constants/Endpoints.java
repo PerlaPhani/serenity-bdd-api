@@ -3,7 +3,6 @@ package com.restfulapi.constants;
 public final class Endpoints {
 
     private Endpoints() {
-        // utility class — no instantiation
     }
 
     public static final String OBJECTS       = "/objects";

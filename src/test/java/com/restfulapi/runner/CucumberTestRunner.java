@@ -24,7 +24,7 @@ import static io.cucumber.junit.platform.engine.Constants.PLUGIN_PROPERTY_NAME;
 @IncludeEngines("cucumber")
 @SelectClasspathResource("features")
 @ConfigurationParameter(key = GLUE_PROPERTY_NAME, value = "com.restfulapi.config,com.restfulapi.context,com.restfulapi.hooks,com.restfulapi.stepdefs")
-@ConfigurationParameter(key = PLUGIN_PROPERTY_NAME, value = "pretty,json:target/cucumber-reports/cucumber.json")
+@ConfigurationParameter(key = PLUGIN_PROPERTY_NAME, value = "pretty,io.cucumber.core.plugin.SerenityReporterParallel,json:target/cucumber-reports/cucumber.json")
 public class CucumberTestRunner {
     // intentionally empty — configuration is provided via annotations
 }
