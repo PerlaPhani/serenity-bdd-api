@@ -45,7 +45,8 @@ src/test/resources/
 │   ├── get_object.feature              # 2 scenarios (@get)
 │   ├── list_objects.feature            # 2 scenarios (@list)
 │   ├── delete_object.feature           # 2 scenarios (@delete)
-│   └── edge_cases.feature             # 5 scenarios (@edge)
+│   ├── edge_cases.feature             # 5 scenarios (@edge)
+│   └── smoke_test.feature             # 4 scenarios (@smoke)
 ├── application.properties              # Base test config (shared settings)
 ├── application-local.properties        # Local profile (localhost:8089)
 ├── application-dev.properties          # Dev profile (api.restful-api.dev)
@@ -79,10 +80,12 @@ The framework uses **Spring profiles** to switch between environments. Each prof
 - **Local** (default): The embedded Spring Boot API starts on port 8089 with 13 seeded objects. Tests run fully self-contained — no external dependencies.
 - **Dev**: Tests point to the remote API. The embedded server still starts (on a random port) but is unused. Only `api.base-url` changes.
 
+> **Rate limit note:** The public restful-api.dev API has a daily request limit of 50 requests on the free tier. If you hit a 405 response with a rate limit error, either wait for the daily reset, sign up at https://restful-api.dev/sign-in for higher limits, or run tests against the local environment instead.
+
 ### Running against each environment
 
 ```bash
-# Local (default) — all 13 scenarios
+# Local (default) — all 17 scenarios
 mvn clean verify
 
 # Dev — exclude edge cases that depend on local seed data
@@ -112,7 +115,7 @@ mvn clean verify -Dspring.profiles.active=dev \
 
 The API is seeded with 13 objects (IDs 1-13) matching restful-api.dev data on startup.
 
-## Test Scenarios (13 total across 5 feature files)
+## Test Scenarios (17 total across 6 feature files)
 
 | Feature File            | Scenarios | Tag       | Coverage                                    |
 |-------------------------|-----------|-----------|---------------------------------------------|
@@ -121,6 +124,7 @@ The API is seeded with 13 objects (IDs 1-13) matching restful-api.dev data on st
 | `list_objects.feature`  | 2         | `@list`   | List all + verify created item in list      |
 | `delete_object.feature` | 2         | `@delete` | Delete created item + non-existent (404)    |
 | `edge_cases.feature`    | 5         | `@edge`   | Empty name, special chars, consistency, update persistence, delete confirmation |
+| `smoke_test.feature`    | 4         | `@smoke`  | Health check, seeded object retrieval (x2), non-existent 404 |
 
 ### Tag Strategy
 
@@ -131,6 +135,7 @@ The API is seeded with 13 objects (IDs 1-13) matching restful-api.dev data on st
 | `@list`    | List/browse scenarios                                 |
 | `@delete`  | Object deletion scenarios                             |
 | `@edge`    | Error handling and edge case scenarios                |
+| `@smoke`   | Smoke tests for verifying basic API availability      |
 | `@wip`     | Work in progress — excluded from all runs by default  |
 
 ## Running Tests
@@ -146,6 +151,10 @@ mvn clean verify -Dcucumber.filter.tags="@get or @delete"
 
 # Dev environment
 mvn clean verify -Dspring.profiles.active=dev
+
+# Smoke tests on dev
+mvn clean verify -Dspring.profiles.active=dev \
+  -Dcucumber.filter.tags="@smoke"
 
 # Environment + tag combination
 mvn clean verify -Dspring.profiles.active=dev \
